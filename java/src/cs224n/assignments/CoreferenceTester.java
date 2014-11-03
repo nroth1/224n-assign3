@@ -569,7 +569,7 @@ public class CoreferenceTester<SYS extends CoreferenceSystem> {
     //(classname)
     String systemClass = props.getProperty("model","baseline");
     if(systemClass.equalsIgnoreCase("baseline")){ systemClass = BaselineCoreferenceSystem.class.getName(); }
-    System.out.println(systemClass + "HHHHHHHHHHHHH!!!!!!!!!!!!!!!!!!!!");
+    //System.out.println(systemClass + "HHHHHHHHHHHHH!!!!!!!!!!!!!!!!!!!!");
     //(create)
     CoreferenceSystem system;
     try{
