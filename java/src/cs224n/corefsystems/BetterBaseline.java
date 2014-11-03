@@ -53,27 +53,37 @@ public class BetterBaseline implements CoreferenceSystem {
 		List<ClusteredMention> clusteredMentions = new ArrayList<ClusteredMention>();
 		List<Mention> mentions = doc.getMentions();
 		Map<String,Entity> clusters = new HashMap<String,Entity>();
+		Map<String,Entity> exactMatch = new HashMap<String,Entity>();
+		
 		for(Mention m : mentions){
 			String headWord = m.headWord().toLowerCase();
-			Set<String> co = new HashSet<String>();
-			if(coOccuringMentions.containsKey(headWord)){
-				 co = new HashSet<String>(coOccuringMentions.get(headWord));
-			}
-			co.retainAll(clusters.keySet());
 			Entity e = null;
-			//add new entry to map
-			if(co.isEmpty()){
-				ClusteredMention cm = m.markSingleton(); 
-				e = cm.entity;
+			if(exactMatch.containsKey(m.gloss())){
+				e = exactMatch.get(m.gloss());
+				ClusteredMention cm = m.markCoreferent(e);
 				clusteredMentions.add(cm);
 			}else{
+				
+				Set<String> co = new HashSet<String>();
+				if(coOccuringMentions.containsKey(headWord)){
+					co = new HashSet<String>(coOccuringMentions.get(headWord));
+				}	
+				co.retainAll(clusters.keySet());
+				//add new entry to map
+				if(co.isEmpty()){
+					ClusteredMention cm = m.markSingleton(); 
+					e = cm.entity;
+					clusteredMentions.add(cm);
+				}else{
 				//find any paired word and glom on to entity. 
-				for(String s : co){
-					e = clusters.get(s);
-					clusteredMentions.add(m.markCoreferent(e));
-					break;
+					for(String s : co){
+						e = clusters.get(s);
+						clusteredMentions.add(m.markCoreferent(e));
+						break;
+					}
 				}
 			}
+			exactMatch.put(m.gloss(), e);
 			clusters.put(headWord,e);
 		}
 		return clusteredMentions;
