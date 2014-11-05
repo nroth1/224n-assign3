@@ -125,10 +125,9 @@ public class RuleBased implements CoreferenceSystem {
 	    	  int begin = m2.beginIndexInclusive;
 	    	  int end = m2.endIndexExclusive;
 	    	  for(int i = begin; i < end; i++ ){
-	    		  if(m1.headWord().toLowerCase().equals(tokens.get(i).word().toLowerCase()) ){
-	    			  System.out.println("===============================");
-	    			  System.out.println("gloss1" + clusters.get(m1.gloss()));
-	    			  System.out.println("gloss2" + clusters.get(m2.gloss()));
+	    		  if(m1.headWord().toLowerCase().equals(tokens.get(i).word().toLowerCase()) && !Pronoun.isSomePronoun(m1.headWord()) ){
+	    			  System.out.println(m1.headWord());
+	    			  
 	    			  
 	    			  //System.out.println("clusters" + entities);
 	    			  mergeEntities(m1,m2,clusters,entities);
@@ -331,7 +330,6 @@ public class RuleBased implements CoreferenceSystem {
 
 	  if(s1 != s2 && ! (s1==null || s2 == null)) return;
 	  entities.remove(e2);
-	  System.out.println("updated");
 	  for(Mention m : e2.mentions){
 		  m.removeCoreference();		    	
 		  clusters.put(m.gloss(), e1);
