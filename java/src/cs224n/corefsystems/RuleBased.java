@@ -3,6 +3,8 @@ package cs224n.corefsystems;
 import java.util.*;
 
 import cs224n.coref.*;
+import cs224n.coref.Pronoun.Speaker;
+import cs224n.coref.Pronoun.Type;
 import cs224n.util.Pair;
 import cs224n.coref.Sentence.Token;
 
@@ -10,7 +12,10 @@ public class RuleBased implements CoreferenceSystem {
 
 
   private HashMap<String,Set<String>> coOccuringMentions = new HashMap<String,Set<String>>();
-
+  private int totalDistance = 0;
+  private int n = 0;
+  
+  
   private void addString(String s1,String s2){
     if(!coOccuringMentions.containsKey(s1)){
       coOccuringMentions.put(s1, new HashSet<String>());
@@ -30,6 +35,20 @@ public class RuleBased implements CoreferenceSystem {
       }
     }
   }
+  
+  private void updateDistance(Entity e){
+	  Set<Mention> allMentions = e.mentions;
+	  for (Mention m1 : allMentions) {
+	      Sentence sentence = m1.sentence;
+	      List<Token> tokens = sentence.tokens;
+	      for (Mention m2 : allMentions) {
+	    	  if (m2.sentence.equals(sentence)) {
+	    		  totalDistance += Math.abs(m2.beginIndexInclusive - m1.endIndexExclusive);
+	    		  n++;
+	    	  }
+	      }
+	  }
+  }
 
   @Override
   public void train(Collection<Pair<Document, List<Entity>>> trainingData) {
@@ -37,103 +56,352 @@ public class RuleBased implements CoreferenceSystem {
     for(Pair<Document, List<Entity>> datum : trainingData){
       for(Entity e : datum.getSecond()){
         generateAndMarkPairs(e);
+        updateDistance(e);
       }
     }
   }
 
+  
+  public List<ClusteredMention> entitiesToClusters(ArrayList<Entity> entities){
+	  List<ClusteredMention> mentions = new ArrayList<ClusteredMention>();
+	  for(Entity e : entities){
+		  for(Mention m : e.mentions){
+			  //System.out.println("!!!!!!!!!!");
+			  mentions.add(m.markCoreferent(e));
+		  }
+	  }
+	  return mentions; 
+  }
+  
   @Override
   public List<ClusteredMention> runCoreference(Document doc) {
 
     List<ClusteredMention> mentions = new ArrayList<ClusteredMention>();
-
+    Map<String, Entity> clusters = new HashMap<String, Entity>();
+   	ArrayList<Entity> entities = new ArrayList<Entity>();
     // Exact match pass
-    exactMatch(doc, mentions);
-
+    exactMatch(doc,clusters,entities);
+    fuzzyMatch(doc,clusters,entities);
+    //System.out.println(clusters);
     // Appositive, predicate nominative, roles, etc.
-    appositives(doc, mentions);
-
+    appositives(doc,clusters,entities);
+    headWords(doc,clusters,entities);
+    headWordsRelaxed(doc,clusters,entities);
+    
+  
+    agreeWords(doc,clusters,entities);
+    pluralWords(doc,clusters,entities);
+    genderNameWords(doc,clusters,entities);
+    genderWords(doc,clusters,entities);
+    pronounPass(doc,clusters,entities);
+    
+    //System.out.println(clusters);
+    //System.out.println("=================");
+    //System.out.println(entities);
+    
     // Head pass
-
+    
 
     //(return the mentions)
-    return mentions;
+    //System.out.println("clusters" + entities);
+    System.out.println("distance" + totalDistance);
+    System.out.println("n" + n);
+    
+    return entitiesToClusters(entities);
 
   }
+  
+  private void headWordsRelaxed(Document doc, Map<String, Entity> clusters,ArrayList<Entity> entities) { 
+	  List<Mention> allMentions = doc.getMentions();
+	  for (Mention m1 : allMentions) {
+	      
+	      for (Mention m2 : allMentions) {
+	    	  Sentence sentence = m2.sentence;
+	    	  List<Token> tokens = sentence.tokens;
+		      
+	    	  if(clusters.get(m1.gloss()).equals(clusters.get(m2.gloss()))) continue;
+	    	  int begin = m2.beginIndexInclusive;
+	    	  int end = m2.endIndexExclusive;
+	    	  for(int i = begin; i < end; i++ ){
+	    		  if(m1.headWord().toLowerCase().equals(tokens.get(i).word().toLowerCase()) ){
+	    			  System.out.println(m1.headWord());
+	    			  
+	    		  }
+	    	  }
+	      }
+	  }
+	  
+  }
+  
+  
+  private void pronounPass(Document doc, Map<String, Entity> clusters,ArrayList<Entity> entities) { 
+	  List<Mention> allMentions = doc.getMentions();
+	  for (Mention m1 : allMentions) {
+	      Sentence sentence = m1.sentence;
+	      List<Token> tokens = sentence.tokens;
+	      for (Mention m2 : allMentions) {
+	    	  if (m2.sentence.equals(sentence)) {
+	    		  if(! (Math.abs(m1.beginIndexInclusive - m2.endIndexExclusive) <= (.5*(float)totalDistance)/n)) continue;
+	    		  if(clusters.get(m1.gloss()).equals(clusters.get(m2.gloss()))) continue;
+	    		  Pronoun p1 = Pronoun.valueOrNull(m1.headWord());
+	    		  if(p1 != null && (m2.headToken().isNoun() || m2.headToken().isProperNoun() || m2.headToken().isPluralNoun())){
+	    			  if(p1.plural && m2.headToken().isPluralNoun() && p1.speaker == Speaker.THIRD_PERSON){
+	    				  mergeEntities(m1,m2,clusters,entities);
+	    			  }else if(!p1.plural && (!m2.headToken().isPluralNoun()) && p1.speaker == Speaker.THIRD_PERSON ){
+	    				  mergeEntities(m1,m2,clusters,entities);
+	    			  }
+			  	  }
+	    	  }
+	      }
+	  }
+  }
+  
+  private void genderNameWords(Document doc, Map<String, Entity> clusters,ArrayList<Entity> entities) { 
+	  List<Mention> allMentions = doc.getMentions();
+	  for (Mention m1 : allMentions) {
+	      Sentence sentence = m1.sentence;
+	      List<Token> tokens = sentence.tokens;
+	      for (Mention m2 : allMentions) {
+	    	  if(clusters.get(m1.gloss()).equals(clusters.get(m2.gloss()))) continue;
+	    	  String headWord1 = m1.headWord();
+    	  	  String headWord2 = m2.headWord();
+    	  	  Pronoun p2 = Pronoun.valueOrNull(m2.headWord());
+			  Pronoun p1 = Pronoun.valueOrNull(m1.headWord());
+		        // "commas" and "is" as separators of PRP and NNP
+		      if (m2.sentence.equals(sentence)) {
+		    	  if(Name.isName(headWord1) && p2 != null){ 
+		    		 if( (Name.gender(headWord1) == p2.gender) && (p2.gender!= Gender.EITHER) ){
+		    			 
+		    			 mergeEntities(m1,m2,clusters,entities);
+		    		 }
+		    	  }
+		      }
+	      }
+	  }
+  }		
+  
+  private void agreeWords(Document doc, Map<String, Entity> clusters,ArrayList<Entity> entities) { 
+	  List<Mention> allMentions = doc.getMentions();
+	  for (Mention m1 : allMentions) {
+	      Sentence sentence = m1.sentence;
+	      List<Token> tokens = sentence.tokens;
+	      for (Mention m2 : allMentions) {
+	    	  if(clusters.get(m1.gloss()).equals(clusters.get(m2.gloss()))) continue;
+	    	
+	        // "commas" and "is" as separators of PRP and NNP
+	    	  if (m2.sentence.equals(sentence)) {
+	    		  Pronoun p2 = Pronoun.valueOrNull(m2.headWord());
+    			  Pronoun p1 = Pronoun.valueOrNull(m1.headWord());
+	    		  if(p1 != null && p2!= null){
+	    			  if(p2.speaker.equals(p1.speaker)){
+	    				  mergeEntities(m1,m2,clusters,entities);
+	    				  
+	    	            	//System.out.println(tokens.get(m1.headWordIndex).posTag());
+	    	            	//System.out.println(tokens.get(m2.headWordIndex).posTag());
+	    			  }
+	    		  }
+	    	  }
+	      }
+	  }
+	  
+  }
+  
+  
+  private void pluralWords(Document doc, Map<String, Entity> clusters,ArrayList<Entity> entities) { 
+	  List<Mention> allMentions = doc.getMentions();
+	  for (Mention m1 : allMentions) {
+	      Sentence sentence = m1.sentence;
+	      List<Token> tokens = sentence.tokens;
+	      for (Mention m2 : allMentions) {
+	    	  if(clusters.get(m1.gloss()).equals(clusters.get(m2.gloss()))) continue;
+	    	
+	        // "commas" and "is" as separators of PRP and NNP
+	    	  if (m2.sentence.equals(sentence)) {
+	    		  Pronoun p2 = Pronoun.valueOrNull(m2.headWord());
+    			  Pronoun p1 = Pronoun.valueOrNull(m1.headWord());
+	    		  if(p1 != null && p2!= null){
+	    			  if((p2.plural == p1.plural)){
+	    				  mergeEntities(m1,m2,clusters,entities);
+	    				  
+	    	            	//System.out.println(tokens.get(m1.headWordIndex).posTag());
+	    	            	//System.out.println(tokens.get(m2.headWordIndex).posTag());
+	    			  }
+	    		  }
+	    	  }
+	      }
+	  }
+	  
+  }
+  
+  
+  private void genderWords(Document doc, Map<String, Entity> clusters,ArrayList<Entity> entities) { 
+	  List<Mention> allMentions = doc.getMentions();
+	  for (Mention m1 : allMentions) {
+	      Sentence sentence = m1.sentence;
+	      List<Token> tokens = sentence.tokens;
+	      for (Mention m2 : allMentions) {
+	    	  if(clusters.get(m1.gloss()).equals(clusters.get(m2.gloss()))) continue;
+	    	
+	        // "commas" and "is" as separators of PRP and NNP
+	    	  if (m2.sentence.equals(sentence)) {
+	    		  Pronoun p2 = Pronoun.valueOrNull(m2.headWord());
+    			  Pronoun p1 = Pronoun.valueOrNull(m1.headWord());
+	    		  if(p1 != null && p2!= null){
+	    			  if(p2.gender.isCompatible(p1.gender)){
+	    				  mergeEntities(m1,m2,clusters,entities);
+	    				  
+	    	            	//System.out.println(tokens.get(m1.headWordIndex).posTag());
+	    	            	//System.out.println(tokens.get(m2.headWordIndex).posTag());
+	    			  }
+	    		  }
+	    	  }
+	      }
+	  }
+	  
+  }
+  
+  
+  private void headWords(Document doc, Map<String, Entity> clusters,ArrayList<Entity> entities) {
+	  List<Mention> allMentions = doc.getMentions();
+	  for (Mention m1 : allMentions) {
+		  for (Mention m2 : allMentions) {
+		    	if(clusters.get(m1.gloss()).equals(clusters.get(m2.gloss()))) continue;
+		    	
+		    	if(coOccuringMentions.containsKey(m1.headWord()) && coOccuringMentions.get(m1.headWord()).contains(m2.headWord())){
+		    		mergeEntities(m1,m2,clusters,entities);
+		    	}
 
-  private void appositives(Document doc, List<ClusteredMention> mentions) {
+		  }
+	  }
+  }
+  
+  private Gender getGender(Entity e){
+	  Gender g = Gender.EITHER;
+	  for(Mention m : e.mentions){
+		  Pronoun p = Pronoun.valueOrNull(m.headWord());
+		  if(p!= null && p.gender!=null && p.gender!=Gender.EITHER && p.gender!=Gender.NEUTRAL){
+			  g = p.gender;
+		  }
+	  }
+	  return g;
+  }
+  
+  private boolean getPlural(Entity e){
+	  for(Mention m : e.mentions){
+		  Pronoun p = Pronoun.valueOrNull(m.headWord());
+		  if(p!= null && p.plural){
+			  return true;
+		  }
+	  }
+	  return false;
+  }
+  
+  private Speaker getSpeaker(Entity e){
+	  for(Mention m : e.mentions){
+		  Pronoun p = Pronoun.valueOrNull(m.headWord());
+		  if(p!= null && p.speaker!=null){
+			  return p.speaker;
+		  }
+	  }
+	  return null;
+  }
+  
+  private void mergeEntities(Mention m1, Mention m2, Map<String, Entity> clusters,ArrayList<Entity> entities){
+	  Entity e1 = clusters.get(m1.gloss());
+	  Entity e2 = clusters.get(m2.gloss());
+	  Gender g1 = getGender(e1);
+	  Gender g2 = getGender(e2);
+
+	  if(!g1.isCompatible(g2)) return;
+
+	  Boolean plural1 = getPlural(e1);
+	  Boolean plural2 = getPlural(e2);
+	  if(plural1 != plural2) return;
+
+	  Speaker s1 = getSpeaker(e1);
+	  Speaker s2 = getSpeaker(e2);
+
+	  if(s1 != s2 && ! (s1==null || s2 == null)) return;
+	  entities.remove(e2);
+	  
+	  for(Mention m : e2.mentions){
+		  m.removeCoreference();		    	
+		  clusters.put(m.gloss(), e1);
+		  e1.add(m);	
+	  }
+  }
+
+  private void appositives(Document doc, Map<String, Entity> clusters,ArrayList<Entity> entities) {
     List<Mention> allMentions = doc.getMentions();
+    
     for (Mention m1 : allMentions) {
       Sentence sentence = m1.sentence;
       List<Token> tokens = sentence.tokens;
       for (Mention m2 : allMentions) {
+    	if(clusters.get(m1.gloss()).equals(clusters.get(m2.gloss()))) continue;
 
         // "commas" and "is" as separators of PRP and NNP
         if (m2.sentence.equals(sentence)) {
-          if (m2.beginIndexInclusive == m1.endIndexExclusive + 1 && (sentence.tokens.get(m1.endIndexExclusive).word().equals(",")) {
+        	
+        	
+          if (m2.beginIndexInclusive == m1.endIndexExclusive + 1 && (sentence.tokens.get(m1.endIndexExclusive).word().equals(","))) {
             if (tokens.get(m1.headWordIndex).posTag().equals("PRP") && tokens.get(m2.headWordIndex).posTag().equals("NNP")) {
-//              System.out.println(m1);
-//              System.out.println(m2);
-//              System.out.println(sentence);
-//              System.out.println("--------");
-
+            	mergeEntities(m1,m2,clusters,entities);
             }
           }
-          if (sentence.tokens.get(m1.endIndexExclusive).word().equals("is")) {
-            if () {
-
-            }
-//            System.out.println(m1.gloss());
-//            System.out.println(m2.gloss());
-//            System.out.println(tokens.get(m1.headWordIndex).posTag());
-//            System.out.println(tokens.get(m2.headWordIndex).posTag());
-//            System.out.println(m1.headWord());
-//            System.out.println(m2.headWord());
-//            System.out.println(sentence);
-//            System.out.println("--------");
-
+          if (m1.endIndexExclusive < tokens.size() && tokens.get(m1.endIndexExclusive).word().equals("is") && (m2.beginIndexInclusive - m1.endIndexExclusive ) < 4 && (m2.beginIndexInclusive > m1.endIndexExclusive) ) {
+        	
+        	
+            if (( tokens.get(m2.headWordIndex).posTag().equals("PRP$") || tokens.get(m2.headWordIndex).posTag().equals("PRP") ) 
+            		&& ( tokens.get(m1.headWordIndex).posTag().equals("NNP") || tokens.get(m1.headWordIndex).posTag().equals("NN") ) ) {
+          
+            	mergeEntities(m1,m2,clusters,entities);
+           }
           }
         }
       }
     }
-
-
-//    for (Sentence s : doc.sentences) {
-//      List<Token> tokens = s.tokens;
-//
-//      // commas
-//      for (int index = 2; index < s.length(); index++) {
-//        if (tokens.get(index).isNoun()) {
-//          if (tokens.get(index - 2).isNoun() && tokens.get(index - 1).word().equals(",")) {
-//            System.out.println(tokens.get(index).word());
-//            System.out.println(s.gloss());
-//            System.out.println("-----");
-//          }
-//        }
-//      }
-//    }
   }
 
 
+  private void fuzzyMatch(Document doc,Map<String, Entity> clusters,ArrayList<Entity> entities) {
+	  List<Mention> allMentions = doc.getMentions();
+	  for (Mention m1 : allMentions) {
+	      Sentence sentence = m1.sentence;
+	      for (Mention m2 : allMentions) {
+	    	  if(clusters.get(m1.gloss()).equals(clusters.get(m2.gloss()))) continue;
+	    	  if(m1.gloss().toLowerCase().contains(m2.gloss().toLowerCase())){
+	    		  if((Pronoun.valueOrNull(m1.headWord()) != null) || (Pronoun.valueOrNull(m2.headWord()) != null)) continue;
+	    		  mergeEntities(m1,m2,clusters,entities);
+	    	  }
+	      }
+	  }
+  }
+  
   /**
    * Exact matching
    * @param doc
    * @param mentions
    */
-  private void exactMatch(Document doc, List<ClusteredMention> mentions) {
-    Map<String, Entity> clusters = new HashMap<String, Entity>();
+  private void exactMatch(Document doc,Map<String, Entity> clusters,ArrayList<Entity> entities) {
+    
     //(for each mention...)
     for(Mention m : doc.getMentions()){
       //(...get its text)
       String mentionString = m.gloss();
       //(...if we've seen this text before...)
       if(clusters.containsKey(mentionString)){
+    	Entity toMerge = clusters.get(mentionString);
+    	m.markCoreferent(toMerge);
+    	//clusters.put(mentionString,toMerge);
         //(...add it to the cluster)
-        mentions.add(m.markCoreferent(clusters.get(mentionString)));
+        //mentions.add(m.markCoreferent(clusters.get(mentionString)));
       } else {
         //(...else create a new singleton cluster)
         ClusteredMention newCluster = m.markSingleton();
-        mentions.add(newCluster);
+        //mentions.add(newCluster);
         clusters.put(mentionString,newCluster.entity);
+        entities.add(newCluster.entity);
       }
     }
   }

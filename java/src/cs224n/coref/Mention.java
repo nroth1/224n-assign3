@@ -46,7 +46,7 @@ public class Mention implements Serializable, Decodable {
   /**
    * Marks the entity this mention is coreferent with
    */
-  protected Entity corefferentWith = null;
+  public Entity corefferentWith = null;
 
   /**
    * Create a new mention from the necessary parameters.
