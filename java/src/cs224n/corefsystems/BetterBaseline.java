@@ -36,7 +36,7 @@ public class BetterBaseline implements CoreferenceSystem {
 			}
 		}
 	}
-	
+
 	@Override
 	public void train(Collection<Pair<Document, List<Entity>>> trainingData) {
 		//For each entity, for every pair of metions in entity, note that pair occured together.
