@@ -17,6 +17,10 @@ public class RuleBased2 implements CoreferenceSystem {
   private int n = 0;
 
 
+  private int distance(Document d, Mention m1, Mention m2) {
+    return Math.abs(d.indexOfMention(m1) - d.indexOfMention(m2));
+  }
+
   private void addString(String s1, String s2) {
     if (!coOccuringMentions.containsKey(s1)) {
       coOccuringMentions.put(s1, new HashSet<String>());
@@ -274,7 +278,7 @@ public class RuleBased2 implements CoreferenceSystem {
   }
 
   /**
-   *
+   * Constructs (appositives, predicate nominatives, etc.)
    * @param doc
    * @param clusters
    * @param entities
@@ -320,7 +324,7 @@ public class RuleBased2 implements CoreferenceSystem {
           // 2. predicate nominatives ("is")
           if (m1.endIndexExclusive < tokens.size() &&
             tokens.get(m1.endIndexExclusive).word().equals("is") &&
-            (m2.beginIndexInclusive - m1.endIndexExclusive) < 6 &&
+            (m2.beginIndexInclusive - m1.endIndexExclusive) < 12 &&
             (m2.beginIndexInclusive > m1.endIndexExclusive))
           {
             Pronoun p2;
