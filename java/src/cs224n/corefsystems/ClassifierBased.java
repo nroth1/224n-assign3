@@ -11,6 +11,7 @@ import edu.stanford.nlp.stats.Counter;
 import edu.stanford.nlp.util.Triple;
 import edu.stanford.nlp.util.logging.RedwoodConfiguration;
 import edu.stanford.nlp.util.logging.StanfordRedwoodConfiguration;
+import cs224n.coref.Pronoun.Speaker;
 
 import java.text.DecimalFormat;
 import java.util.*;
@@ -35,12 +36,12 @@ public class ClassifierBased implements CoreferenceSystem {
 			 */
 
 			Feature.ExactMatch.class,
-			Feature.FuzzyMatch.class,
-			//Feature.DistanceMatch.class,
+			//Feature.FuzzyMatch.class,
+			Feature.DistanceMatch.class,
 			Feature.EarlyMatch.class,
-			Feature.Impossible.class,
-			//Feature.PronounMatch.class,
-			//Feature.OnePronounMatch.class,
+			//Feature.Impossible.class,
+			Feature.PronounMatch.class,
+			Feature.OnePronounMatch.class,
 			//Feature.EarlyAndFuzzy.class,
 			
 			//skeleton for how to create a pair feature
@@ -68,21 +69,27 @@ public class ClassifierBased implements CoreferenceSystem {
 	}
 	
 	private int getDistance(Mention onPrix, Mention candidate){
-		int distance = (onPrix.doc.indexOfSentence(onPrix.sentence) - candidate.doc.indexOfSentence(candidate.sentence))^2;
+		int distance = Math.abs(onPrix.doc.indexOfSentence(onPrix.sentence) - candidate.doc.indexOfSentence(candidate.sentence));
+		if(distance == 0) return 0;
+		if(distance == 1) return 1;
+		if(distance == 2) return 2;
+		if(distance == 3) return 3;
+		return 4;
 		//System.out.println(""+distance);
-		return distance;
+		//return distance;
 	}
 	
 	private boolean getEarly(Mention onPrix, Mention candidate){
-		boolean isEarly = onPrix.beginIndexInclusive < 2;
-		boolean isEarlyCand = candidate.beginIndexInclusive < 2;
+		boolean isEarly = onPrix.beginIndexInclusive < 5;
+		boolean isEarlyCand = candidate.beginIndexInclusive < 5;
 		//System.out.println("out");
-		//return true;
-		return !(isEarly && isEarlyCand);
+		
+		
+		//return Math.abs(onPrix.beginIndexInclusive - candidate.beginIndexInclusive) < 5 ;
+		return (isEarly && isEarlyCand);
 	}
 	private int totalCount = 0;
 	private boolean getPronoun(Mention onPrix, Mention candidate){
-		System.out.println(totalCount);
 		if((Pronoun.valueOrNull(onPrix.headWord()) != null) && (Pronoun.valueOrNull(candidate.headWord()) != null)) totalCount++;
 		return (Pronoun.valueOrNull(onPrix.headWord()) != null) && (Pronoun.valueOrNull(candidate.headWord()) != null);
 	}	
@@ -96,8 +103,39 @@ public class ClassifierBased implements CoreferenceSystem {
 		return false;
 	}	
 	
+	private boolean isPlural(Mention m ){
+		Pronoun p = Pronoun.valueOrNull(m.headWord());
+	    if (p != null && p.plural) {
+	    	return true;
+	    }
+	    return false;
+	}
+	
+	private Speaker getSpeaker(Mention m ){
+	      Pronoun p = Pronoun.valueOrNull(m.headWord());
+	      if (p != null && p.speaker != null) {
+	        return p.speaker;
+	      }
+	      return null;
+	}
+	
+	private Gender getGender(Mention m){
+		 Pronoun p = Pronoun.valueOrNull(m.headWord());
+	      if (p != null && p.gender != null && p.gender != Gender.EITHER && p.gender != Gender.NEUTRAL) {
+	        return p.gender;
+	      }
+	      return null;
+	}
+	
 	private boolean isImpossible(Mention onPrix, Mention candidate){
+		if(Pronoun.valueOrNull(onPrix.headWord()) == null || Pronoun.valueOrNull(candidate.headWord())==null) {return true; }
 		
+		if(isPlural(onPrix) != isPlural(candidate)) {return false; }
+		
+		if(!getSpeaker(onPrix).equals(getSpeaker(candidate))) {return false; }
+		
+		if(getGender(onPrix) != getGender(candidate)) {return false; }
+		return true;
 	}
 	
 	
@@ -117,7 +155,7 @@ public class ClassifierBased implements CoreferenceSystem {
 			}else if(clazz.equals(Feature.FuzzyMatch.class)) {
 				return new Feature.FuzzyMatch( isFuzzy(onPrix,candidate) );//onPrix.gloss().candidate.gloss()));
 			}else if(clazz.equals(Feature.DistanceMatch.class)) {
-				return new Feature.DistanceMatch(getDistance(onPrix,candidate));
+				return new Feature.DistanceMatch(getDistance(onPrix,candidate),5,5);
 			}else if(clazz.equals(Feature.EarlyMatch.class)) {
 				return new Feature.EarlyMatch(getEarly(onPrix,candidate));
 			}else if(clazz.equals(Feature.PronounMatch.class)) {
@@ -127,7 +165,7 @@ public class ClassifierBased implements CoreferenceSystem {
 			}else if(clazz.equals(Feature.EarlyAndFuzzy.class)) {
 				return new Feature.EarlyAndFuzzy( getEarly(onPrix,candidate) || isFuzzy(onPrix,candidate) );
 			}else if(clazz.equals(Feature.Impossible.class)) {
-				return new Feature.EarlyAndFuzzy( isImpossible(onPrix,candidate) );
+				return new Feature.Impossible( isImpossible(onPrix,candidate) );
 			}
 			else {
 				throw new IllegalArgumentException("Unregistered feature: " + clazz);
@@ -224,7 +262,7 @@ public class ClassifierBased implements CoreferenceSystem {
 			Feature feature = featureInfo.first();
 			Boolean label = featureInfo.second();
 			Double magnitude = featureInfo.third();
-			//log(FORCE,new DecimalFormat("0.000").format(magnitude) + " [" + label + "] " + feature);
+			log(FORCE,new DecimalFormat("0.000").format(magnitude) + " [" + label + "] " + feature);
 		}
 		end_Track("Features");
 		endTrack("Training");

@@ -108,8 +108,8 @@ public interface Feature {
 	    public FuzzyMatch(boolean fuzzyMatch){ super(fuzzyMatch); }
   }
   
-  public static class DistanceMatch extends IntIndicator {
-	    public DistanceMatch(int distance){ super(distance); }
+  public static class DistanceMatch extends BucketIndicator {
+	    public DistanceMatch(int value,int max, int buckets){ super(value,max,buckets); }
 }
   
   
