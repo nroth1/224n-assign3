@@ -143,7 +143,7 @@ public class RuleBased2 implements CoreferenceSystem {
   }
 
   /**
-   * Pronoun matching
+   * Speaker matching
    * @param doc
    * @param clusters
    * @param entities
@@ -156,19 +156,17 @@ public class RuleBased2 implements CoreferenceSystem {
 
         if (m1.sentence.equals(m2.sentence) && m1.sentence.tokens.get(m1.headWordIndex).isQuoted() &&
           m1.sentence.tokens.get(m1.headWordIndex).speaker().lastIndexOf(m2.headWord()) != -1 &&
-          Pronoun.valueOrNull(m2.headWord()) == null) {
-          System.out.println("-----start");
-          System.out.println(m1.sentence);
-          System.out.println(m1.gloss());
-          System.out.println(m2.gloss());
-          System.out.println(m1.sentence.tokens.get(m1.headWordIndex).speaker());
-          System.out.println("-----end");
+          Pronoun.valueOrNull(m2.headWord()) == null)
+        {
+//          System.out.println("-----start");
+//          System.out.println(m1.sentence);
+//          System.out.println(m1.gloss());
+//          System.out.println(m2.gloss());
+//          System.out.println(m2.headWord());
+//          System.out.println(m1.sentence.tokens.get(m1.headWordIndex).speaker());
+//          System.out.println("-----end");
           mergeEntities(m1, m2, clusters, entities);
         }
-
-//        System.out.println(m2.sentence.tokens.get(m2.headWordIndex).isQuoted());
-//        System.out.println(m2.sentence.tokens.get(m2.headWordIndex).speaker());
-
       }
     }
   }
@@ -322,7 +320,7 @@ public class RuleBased2 implements CoreferenceSystem {
           // 2. predicate nominatives ("is")
           if (m1.endIndexExclusive < tokens.size() &&
             tokens.get(m1.endIndexExclusive).word().equals("is") &&
-            (m2.beginIndexInclusive - m1.endIndexExclusive) < 4 &&
+            (m2.beginIndexInclusive - m1.endIndexExclusive) < 6 &&
             (m2.beginIndexInclusive > m1.endIndexExclusive))
           {
             Pronoun p2;
