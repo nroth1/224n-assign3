@@ -1,6 +1,7 @@
 package cs224n.corefsystems;
 
 import cs224n.coref.*;
+import cs224n.coref.Sentence.Token;
 import cs224n.util.Pair;
 import edu.stanford.nlp.classify.LinearClassifier;
 import edu.stanford.nlp.classify.LinearClassifierFactory;
@@ -34,9 +35,16 @@ public class ClassifierBased implements CoreferenceSystem {
 			 */
 
 			Feature.ExactMatch.class,
-
+			Feature.FuzzyMatch.class,
+			//Feature.DistanceMatch.class,
+			Feature.EarlyMatch.class,
+			Feature.Impossible.class,
+			//Feature.PronounMatch.class,
+			//Feature.OnePronounMatch.class,
+			//Feature.EarlyAndFuzzy.class,
+			
 			//skeleton for how to create a pair feature
-			//Pair.make(Feature.IsFeature1.class, Feature.IsFeature2.class),
+			//Pair.make(Feature.FuzzyMatch.class, Feature.DistanceMatch.class)
 	});
 
 
@@ -46,7 +54,53 @@ public class ClassifierBased implements CoreferenceSystem {
 		StanfordRedwoodConfiguration.setup();
 		RedwoodConfiguration.current().collapseApproximate().apply();
 	}
-
+	private boolean isFuzzy(Mention onPrix, Mention candidate){
+		List<Token> tokens = onPrix.sentence.tokens;
+		List<Token> tokensCandidate = candidate.sentence.tokens;
+		//System.out.println("YAY!!");
+		int overlap = 0;
+		for(int i = onPrix.beginIndexInclusive; i < onPrix.endIndexExclusive ; i++){
+			Token tok = tokens.get(i);
+			if(tokensCandidate.contains(tok)) overlap++;
+		}
+		//System.out.println(""+overlap);
+		return overlap > 1;
+	}
+	
+	private int getDistance(Mention onPrix, Mention candidate){
+		int distance = (onPrix.doc.indexOfSentence(onPrix.sentence) - candidate.doc.indexOfSentence(candidate.sentence))^2;
+		//System.out.println(""+distance);
+		return distance;
+	}
+	
+	private boolean getEarly(Mention onPrix, Mention candidate){
+		boolean isEarly = onPrix.beginIndexInclusive < 2;
+		boolean isEarlyCand = candidate.beginIndexInclusive < 2;
+		//System.out.println("out");
+		//return true;
+		return !(isEarly && isEarlyCand);
+	}
+	private int totalCount = 0;
+	private boolean getPronoun(Mention onPrix, Mention candidate){
+		System.out.println(totalCount);
+		if((Pronoun.valueOrNull(onPrix.headWord()) != null) && (Pronoun.valueOrNull(candidate.headWord()) != null)) totalCount++;
+		return (Pronoun.valueOrNull(onPrix.headWord()) != null) && (Pronoun.valueOrNull(candidate.headWord()) != null);
+	}	
+	
+	private boolean getOnePronoun(Mention onPrix, Mention candidate){
+		if(Pronoun.valueOrNull(onPrix.headWord()) != null){
+			return ! (Pronoun.valueOrNull(candidate.headWord()) != null);
+		}else if((Pronoun.valueOrNull(candidate.headWord()) != null)){
+			return !(Pronoun.valueOrNull(onPrix.headWord()) != null);
+		}
+		return false;
+	}	
+	
+	private boolean isImpossible(Mention onPrix, Mention candidate){
+		
+	}
+	
+	
 	public FeatureExtractor<Pair<Mention,ClusteredMention>,Feature,Boolean> extractor = new FeatureExtractor<Pair<Mention, ClusteredMention>, Feature, Boolean>() {
 		private <E> Feature feature(Class<E> clazz, Pair<Mention,ClusteredMention> input, Option<Double> count){
 			
@@ -59,11 +113,21 @@ public class ClassifierBased implements CoreferenceSystem {
 			//--Features
 			if(clazz.equals(Feature.ExactMatch.class)){
 				//(exact string match)
-				return new Feature.ExactMatch(onPrix.gloss().equals(candidate.gloss()));
-//			} else if(clazz.equals(Feature.NewFeature.class) {
-				/*
-				 * TODO: Add features to return for specific classes. Implement calculating values of features here.
-				 */
+				return new Feature.ExactMatch(onPrix.gloss().equalsIgnoreCase(candidate.gloss()));
+			}else if(clazz.equals(Feature.FuzzyMatch.class)) {
+				return new Feature.FuzzyMatch( isFuzzy(onPrix,candidate) );//onPrix.gloss().candidate.gloss()));
+			}else if(clazz.equals(Feature.DistanceMatch.class)) {
+				return new Feature.DistanceMatch(getDistance(onPrix,candidate));
+			}else if(clazz.equals(Feature.EarlyMatch.class)) {
+				return new Feature.EarlyMatch(getEarly(onPrix,candidate));
+			}else if(clazz.equals(Feature.PronounMatch.class)) {
+				return new Feature.PronounMatch(getPronoun(onPrix,candidate));
+			}else if(clazz.equals(Feature.OnePronounMatch.class)) {
+				return new Feature.OnePronounMatch(getOnePronoun(onPrix,candidate));
+			}else if(clazz.equals(Feature.EarlyAndFuzzy.class)) {
+				return new Feature.EarlyAndFuzzy( getEarly(onPrix,candidate) || isFuzzy(onPrix,candidate) );
+			}else if(clazz.equals(Feature.Impossible.class)) {
+				return new Feature.EarlyAndFuzzy( isImpossible(onPrix,candidate) );
 			}
 			else {
 				throw new IllegalArgumentException("Unregistered feature: " + clazz);

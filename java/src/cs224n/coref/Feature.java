@@ -104,5 +104,33 @@ public interface Feature {
   /*
    * TODO: Add values to the indicators here.
    */
+  public static class FuzzyMatch extends Indicator {
+	    public FuzzyMatch(boolean fuzzyMatch){ super(fuzzyMatch); }
+  }
+  
+  public static class DistanceMatch extends IntIndicator {
+	    public DistanceMatch(int distance){ super(distance); }
+}
+  
+  
+  public static class EarlyMatch extends Indicator {
+	    public EarlyMatch(boolean distance){ super(distance); }
+  }
+  
+  public static class PronounMatch extends Indicator {
+	    public PronounMatch(boolean pronoun){ super(pronoun); }
+}
+  
+  public static class OnePronounMatch extends Indicator {
+	    public OnePronounMatch(boolean pronoun){ super(pronoun); }
+}
+  
+  public static class EarlyAndFuzzy extends Indicator {
+	    public EarlyAndFuzzy(boolean fuzzy){ super(fuzzy); }
+}
+  
+  public static class Impossible extends Indicator {
+	    public Impossible(boolean impossible){ super(impossible); }
+}
 
 }
