@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="extlib">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/extlib/xom.jar!/" />
+      <root url="jar://$PROJECT_DIR$/extlib/joda-time.jar!/" />
+      <root url="jar://$PROJECT_DIR$/extlib/stanford-corenlp-2012-07-09.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
