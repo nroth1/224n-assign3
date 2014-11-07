@@ -4,6 +4,7 @@ import java.util.*;
 
 import cs224n.coref.*;
 import cs224n.coref.Pronoun.Speaker;
+import cs224n.util.CounterMap;
 import cs224n.util.Pair;
 import cs224n.coref.Sentence.Token;
 
@@ -11,6 +12,7 @@ public class RuleBased2 implements CoreferenceSystem {
 
   // Map of co-occuring mentions in the training documents
   private HashMap<String, Set<String>> coOccuringMentions = new HashMap<String, Set<String>>();
+  private CounterMap<String, String> coMentions = new CounterMap<String, String>();
 
   // Statistics computed from the document (token-wise distance between mentions of the same sentence)
   private int totalDistance = 0;
@@ -27,6 +29,7 @@ public class RuleBased2 implements CoreferenceSystem {
     }
     Set<String> cos = coOccuringMentions.get(s1);
     cos.add(s2);
+    coMentions.incrementCount(s1, s2, 1.0);
   }
 
 
@@ -95,7 +98,7 @@ public class RuleBased2 implements CoreferenceSystem {
 
 
     // Pass 4: Relaxed head matching (head word as a substring of extent text)
-//    relaxedHeadMatch(doc, clusters, entities); // does worse...?
+    relaxedHeadMatch(doc, clusters, entities); // does worse...?
 
     // Pass 5: Pronoun matching (agreement in gender, speaker, singular/plural, etc.)
     pronounMatch(doc, clusters, entities);
@@ -105,6 +108,9 @@ public class RuleBased2 implements CoreferenceSystem {
 
     // Pass 7: Speaker matching
     speakerMatch(doc, clusters, entities);
+
+    // Pass 8: Pronoun-noun final match
+    pronounPass(doc, clusters, entities);
 
 //    System.out.println(clusters);
 
@@ -176,6 +182,31 @@ public class RuleBased2 implements CoreferenceSystem {
   }
 
 
+  private void pronounPass(Document doc, Map<Mention, Entity> clusters, ArrayList<Entity> entities) {
+    List<Mention> allMentions = doc.getMentions();
+    for (Mention m1 : allMentions) {
+      Sentence sentence = m1.sentence;
+      for (Mention m2 : allMentions) {
+        if (m2.sentence.equals(sentence)) {
+
+          if (!(Math.abs(m1.beginIndexInclusive - m2.endIndexExclusive) <= (.5 * (float) totalDistance) / n)) continue;
+
+          if (clusters.get(m1).equals(clusters.get(m2))) continue;
+          Pronoun p1 = Pronoun.valueOrNull(m1.headWord());
+
+          if (p1 != null && (m2.headToken().isNoun() || m2.headToken().isProperNoun() || m2.headToken().isPluralNoun())) {
+            if (p1.plural && m2.headToken().isPluralNoun() && p1.speaker == Speaker.THIRD_PERSON) {
+              mergeEntities(m1, m2, clusters, entities);
+            } else if (!p1.plural && (!m2.headToken().isPluralNoun()) && p1.speaker == Speaker.THIRD_PERSON) {
+              mergeEntities(m1, m2, clusters, entities);
+            }
+          }
+        }
+      }
+    }
+  }
+
+
   /**
    * Pronoun matching
    * @param doc
@@ -234,17 +265,33 @@ public class RuleBased2 implements CoreferenceSystem {
         if (clusters.get(m1).equals(clusters.get(m2))) continue;
 
         // case insensitive head word matching (except for third person pronouns)
-        if (m1.gloss().lastIndexOf(m2.headWord()) != -1 &&
-          Pronoun.valueOrNull(m1.headWord()) == null &&
-          Pronoun.valueOrNull(m2.headWord()) == null)// &&
-//          m1.sentence.equals(m2.sentence))
-        {
-          mergeEntities(m1, m2, clusters, entities);
-        }
-
-//        if (coOccuringMentions.containsKey(m1.headWord()) && coOccuringMentions.get(m1.headWord()).contains(m2.headWord())) {
+//        if (m1.gloss().lastIndexOf(m2.headWord()) != -1 &&
+//          Pronoun.valueOrNull(m1.headWord()) == null &&
+//          Pronoun.valueOrNull(m2.headWord()) == null)// &&
+////          m1.sentence.equals(m2.sentence))
+//        {
 //          mergeEntities(m1, m2, clusters, entities);
 //        }
+
+        if (coOccuringMentions.containsKey(m1.headWord()) && coOccuringMentions.get(m1.headWord()).contains(m2.headWord()) &&
+          Pronoun.valueOrNull(m1.headWord()) == null &&
+          Pronoun.valueOrNull(m2.headWord()) == null &&
+          !m1.headWord().equalsIgnoreCase("this") &&
+          !m2.headWord().equalsIgnoreCase("this") &&
+          !m1.headWord().equalsIgnoreCase("that") &&
+          !m2.headWord().equalsIgnoreCase("that"))
+        {
+//          System.out.println("-----start");
+//          System.out.println("m1 sentence: " + m1.sentence);
+//          System.out.println("m2 sentence: " + m2.sentence);
+//          System.out.println("m1 head: " + m1.headWord());
+//          System.out.println("m1 gloss: " + m1.gloss());
+//          System.out.println("m2 head: " + m2.headWord());
+//          System.out.println("m2 gloss: " + m2.gloss());
+//          System.out.println(coMentions.getCount(m1.headWord(), m2.headWord()));
+//          System.out.println("-----end");
+          mergeEntities(m1, m2, clusters, entities);
+        }
 
       }
     }
@@ -342,6 +389,8 @@ public class RuleBased2 implements CoreferenceSystem {
               mergeEntities(m1, m2, clusters, entities);
             }
           }
+
+          // TODO: "are" (similar to above)
 
           // 3. acronyms - account for apostrophe's (ex. "USTC" vs. "USTC's")  and articles (ex. "UN" and "the UN")
           if (m1.gloss().toUpperCase().equals(m1.gloss()) && !m1.gloss().equals("I") &&

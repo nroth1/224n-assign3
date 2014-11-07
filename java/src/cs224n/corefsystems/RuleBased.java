@@ -101,7 +101,7 @@ public class RuleBased implements CoreferenceSystem {
 //    pluralWords(doc, clusters, entities);
 //    genderNameWords(doc, clusters, entities);
 //    genderWords(doc, clusters, entities);
-//    pronounPass(doc, clusters, entities);
+    pronounPass(doc, clusters, entities);
 
     //System.out.println(clusters);
     //System.out.println("=================");
