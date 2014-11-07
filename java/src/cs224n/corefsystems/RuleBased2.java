@@ -93,9 +93,14 @@ public class RuleBased2 implements CoreferenceSystem {
     // Pass 4: Relaxed head matching (head word as a substring of extent text)
 //    relaxedHeadMatch(doc, clusters, entities); // does worse...?
 
-    // Pass 5: Pronoun matching (many cases: agreement in gender, speaker, singular/plural, etc.)
-    // TODO: pronoun matching
+    // Pass 5: Pronoun matching (agreement in gender, speaker, singular/plural, etc.)
     pronounMatch(doc, clusters, entities);
+
+    // Pass 6: Co-occurring mentions
+//    coOccurring(doc, clusters, entities);
+
+    // Pass 7: Speaker matching
+    speakerMatch(doc, clusters, entities);
 
 //    System.out.println(clusters);
 
@@ -135,6 +140,37 @@ public class RuleBased2 implements CoreferenceSystem {
 //    System.out.println(m1.gloss());
 //    System.out.println(m2.gloss());
 //    System.out.println("-----end");
+  }
+
+  /**
+   * Pronoun matching
+   * @param doc
+   * @param clusters
+   * @param entities
+   */
+  private void speakerMatch(Document doc, Map<Mention, Entity> clusters, ArrayList<Entity> entities) {
+    List<Mention> allMentions = doc.getMentions();
+    for (Mention m1 : allMentions) {
+      for (Mention m2 : allMentions) {
+        if (clusters.get(m1).equals(clusters.get(m2))) continue;
+
+        if (m1.sentence.equals(m2.sentence) && m1.sentence.tokens.get(m1.headWordIndex).isQuoted() &&
+          m1.sentence.tokens.get(m1.headWordIndex).speaker().lastIndexOf(m2.headWord()) != -1 &&
+          Pronoun.valueOrNull(m2.headWord()) == null) {
+          System.out.println("-----start");
+          System.out.println(m1.sentence);
+          System.out.println(m1.gloss());
+          System.out.println(m2.gloss());
+          System.out.println(m1.sentence.tokens.get(m1.headWordIndex).speaker());
+          System.out.println("-----end");
+          mergeEntities(m1, m2, clusters, entities);
+        }
+
+//        System.out.println(m2.sentence.tokens.get(m2.headWordIndex).isQuoted());
+//        System.out.println(m2.sentence.tokens.get(m2.headWordIndex).speaker());
+
+      }
+    }
   }
 
 
