@@ -20,6 +20,7 @@ public class RuleBased2 implements CoreferenceSystem {
 
 
   private int distance(Document d, Mention m1, Mention m2) {
+    Math.abs(d.indexOfSentence(m1.sentence) - d.indexOfSentence(m2.sentence));
     return Math.abs(d.indexOfMention(m1) - d.indexOfMention(m2));
   }
 

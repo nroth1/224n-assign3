@@ -40,6 +40,16 @@ public interface Feature {
     public String toString(){ return this.getClass().getSimpleName() + "(" + value + ")"; }
   }
 
+  public static abstract class DoubleIndicator implements Feature {
+    public final double value;
+    public DoubleIndicator(double value){ this.value = value; }
+    public boolean equals(Object o){ return o instanceof DoubleIndicator && o.getClass().equals(this.getClass()) && ((DoubleIndicator) o).value == value; }
+    public int hashCode(){
+      return this.getClass().hashCode() ^ (int)value;
+    }
+    public String toString(){ return this.getClass().getSimpleName() + "(" + value + ")"; }
+  }
+
   public static abstract class BucketIndicator implements Feature {
     public final int bucket;
     public final int numBuckets;
@@ -129,8 +139,16 @@ public interface Feature {
 	    public EarlyAndFuzzy(boolean fuzzy){ super(fuzzy); }
 }
   
-  public static class Impossible extends Indicator {
-	    public Impossible(boolean impossible){ super(impossible); }
+  public static class Possible extends Indicator {
+	    public Possible(boolean possible){ super(possible); }
 }
+
+  public static class FuzzyFrac extends DoubleIndicator {
+      public FuzzyFrac(double frac){ super(frac); }
+  }
+
+  public static class HeadMatch extends Indicator {
+      public HeadMatch(boolean isMatch){ super(isMatch); }
+  }
 
 }
