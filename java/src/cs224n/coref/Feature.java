@@ -9,9 +9,9 @@ import java.util.Set;
  */
 public interface Feature {
 
-  //-----------------------------------------------------------
+  //------------------------------------------------------------
   // TEMPLATE FEATURE TEMPLATES
-  //-----------------------------------------------------------
+  //------------------------------------------------------------
   public static class PairFeature implements Feature {
     public final Pair<Feature,Feature> content;
     public PairFeature(Feature a, Feature b){ this.content = Pair.make(a, b); }

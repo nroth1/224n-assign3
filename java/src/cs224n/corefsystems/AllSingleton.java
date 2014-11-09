@@ -25,8 +25,6 @@ public class AllSingleton implements CoreferenceSystem {
 		List<Mention> mentions = doc.getMentions();
 		List<ClusteredMention> clustered = new ArrayList<ClusteredMention>();
 		for(Mention m : mentions){
-			//System.out.println("HEREHEHERHEHERHREH!!!");
-			//Entity single = new Entity(mentions);
 			ClusteredMention single = m.markSingleton();
 			clustered.add(single);
 		}

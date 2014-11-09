@@ -18,9 +18,7 @@ public class RuleBased implements CoreferenceSystem {
   private int totalDistance = 0;
   private int n = 0;
 
-  /**
-   * Add two head word strings to
-   */
+
   private void addString(String s1, String s2) {
     if (!coreferentHeadwords.containsKey(s1)) {
       coreferentHeadwords.put(s1, new HashSet<String>());
@@ -30,9 +28,6 @@ public class RuleBased implements CoreferenceSystem {
     coMentions.incrementCount(s1, s2, 1.0);
   }
 
-  /**
-   *
-   */
   private void generateAndMarkPairs(Entity e) {
     Set<Mention> mentions = e.mentions;
     for (Mention m1 : mentions) {
@@ -45,9 +40,6 @@ public class RuleBased implements CoreferenceSystem {
     }
   }
 
-  /**
-   *
-   */
   private void updateDistance(Entity e) {
     Set<Mention> allMentions = e.mentions;
     for (Mention m1 : allMentions) {
@@ -72,9 +64,6 @@ public class RuleBased implements CoreferenceSystem {
     }
   }
 
-  /**
-   *
-   */
   public List<ClusteredMention> entitiesToClusters(ArrayList<Entity> entities) {
     List<ClusteredMention> mentions = new ArrayList<ClusteredMention>();
     for (Entity e : entities) {
@@ -237,29 +226,6 @@ public class RuleBased implements CoreferenceSystem {
     }
   }
 
-//  /**
-//   * Speaker matching
-//   * @param doc
-//   * @param clusters
-//   * @param entities
-//   */
-//  private void speakerMatch(Document doc, Map<Mention, Entity> clusters, ArrayList<Entity> entities) {
-//    List<Mention> allMentions = doc.getMentions();
-//    for (Mention m1 : allMentions) {
-//      for (Mention m2 : allMentions) {
-//        if (clusters.get(m1).equals(clusters.get(m2))) continue;
-//
-//        if (m1.sentence.equals(m2.sentence) && m1.sentence.tokens.get(m1.headWordIndex).isQuoted() &&
-//          m1.sentence.tokens.get(m1.headWordIndex).speaker().lastIndexOf(m2.headWord()) != -1 &&
-//          Pronoun.valueOrNull(m2.headWord()) == null)
-//        {
-//          mergeEntities(m1, m2, clusters, entities);
-//        }
-//      }
-//    }
-//  }
-
-
   /**
    * Pass 4: Relaxed head word matching (case insensitive)
    */
@@ -329,11 +295,13 @@ public class RuleBased implements CoreferenceSystem {
       for (Mention m2 : allMentions) {
         if (m2.sentence.equals(sentence)) {
 
+          // Mentions must appear within some scale of average distance, computed from the training documents
           if (!(Math.abs(m1.beginIndexInclusive - m2.endIndexExclusive) <= (.5 * (float) totalDistance) / n)) continue;
 
           if (clusters.get(m1).equals(clusters.get(m2))) continue;
           Pronoun p1 = Pronoun.valueOrNull(m1.headWord());
 
+          //
           if (p1 != null && (m2.headToken().isNoun() || m2.headToken().isProperNoun() || m2.headToken().isPluralNoun())) {
             if (p1.plural && m2.headToken().isPluralNoun() && p1.speaker == Speaker.THIRD_PERSON) {
               mergeEntities(m1, m2, clusters, entities);
