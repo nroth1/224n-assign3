@@ -9,9 +9,9 @@ import java.util.Set;
  */
 public interface Feature {
 
-  //------------------------------------------------------------
+  //-----------------------------------------------------------
   // TEMPLATE FEATURE TEMPLATES
-  //------------------------------------------------------------
+  //-----------------------------------------------------------
   public static class PairFeature implements Feature {
     public final Pair<Feature,Feature> content;
     public PairFeature(Feature a, Feature b){ this.content = Pair.make(a, b); }
@@ -94,10 +94,6 @@ public interface Feature {
       return b.toString();
     }
   }
-  
-  /*
-   * TODO: If necessary, add new feature types
-   */
 
   //-----------------------------------------------------------
   // REAL FEATURE TEMPLATES
@@ -110,10 +106,7 @@ public interface Feature {
   public static class ExactMatch extends Indicator {
     public ExactMatch(boolean exactMatch){ super(exactMatch); }
   }
-  
-  /*
-   * TODO: Add values to the indicators here.
-   */
+
   public static class FuzzyMatch extends Indicator {
 	    public FuzzyMatch(boolean fuzzyMatch){ super(fuzzyMatch); }
   }
@@ -127,8 +120,8 @@ public interface Feature {
 	    public EarlyMatch(boolean distance){ super(distance); }
   }
   
-  public static class PronounMatch extends Indicator {
-	    public PronounMatch(boolean pronoun){ super(pronoun); }
+  public static class PronounMatch2 extends Indicator {
+	    public PronounMatch2(boolean pronoun){ super(pronoun); }
 }
   
   public static class OnePronounMatch extends Indicator {
@@ -139,8 +132,8 @@ public interface Feature {
 	    public EarlyAndFuzzy(boolean fuzzy){ super(fuzzy); }
 }
   
-  public static class Possible extends Indicator {
-	    public Possible(boolean possible){ super(possible); }
+  public static class isPronounMatch extends Indicator {
+	    public isPronounMatch(boolean isPronounMatch){ super(isPronounMatch); }
 }
 
   public static class FuzzyFrac extends DoubleIndicator {

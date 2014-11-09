@@ -31,21 +31,19 @@ public class ClassifierBased implements CoreferenceSystem {
 
   private static final Set<Object> ACTIVE_FEATURES = mkSet(new Object[]{
 
-
     Feature.ExactMatch.class,
     Feature.FuzzyMatch.class,
     Feature.DistanceMatch.class,
     Feature.EarlyMatch.class,
-    Feature.Possible.class,
-//    Feature.PronounMatch.class,
+    Feature.isPronounMatch.class,
+    Feature.HeadMatch.class,
+//    Feature.PronounMatch2.class,
 //    Feature.OnePronounMatch.class,
 //    Feature.EarlyAndFuzzy.class,
 //    Feature.FuzzyFrac.class,
-    Feature.HeadMatch.class,
 
     //skeleton for how to create a pair feature
-//    Pair.make(Feature.FuzzyMatch.class, Feature.EarlyMatch.class) <- improves performance, but questionable interpretation
-    Pair.make(Feature.Possible.class, Feature.DistanceMatch.class)
+    Pair.make(Feature.isPronounMatch.class, Feature.DistanceMatch.class)
   });
 
 
@@ -65,13 +63,12 @@ public class ClassifierBased implements CoreferenceSystem {
       tokensCandidate.add(tokens2.get(i));
     }
 
-    //System.out.println("YAY!!");
     int overlap = 0;
     for (int i = onPrix.beginIndexInclusive; i < onPrix.endIndexExclusive; i++) {
       Token tok = tokens.get(i);
       if (tokensCandidate.contains(tok)) overlap++;
     }
-    //System.out.println(""+overlap);
+
     return overlap > 1;
   }
 
@@ -84,7 +81,7 @@ public class ClassifierBased implements CoreferenceSystem {
       tokensCandidate.add(tokens2.get(i));
     }
     Set<Token> seen = new HashSet<Token>();
-    //System.out.println("YAY!!");
+
     int overlap = 0;
     int union = 0;
     for (int i = onPrix.beginIndexInclusive; i < onPrix.endIndexExclusive; i++) {
@@ -109,17 +106,12 @@ public class ClassifierBased implements CoreferenceSystem {
     if (distance == 2) return 2;
     if (distance == 3) return 3;
     return 4;
-    //System.out.println(""+distance);
-    //return distance;
   }
 
   private boolean getEarly(Mention onPrix, Mention candidate) {
-    int cutoff = 13; // 13
+    int cutoff = 13;
     boolean isEarly = onPrix.beginIndexInclusive < cutoff;
     boolean isEarlyCand = candidate.beginIndexInclusive < cutoff;
-//    System.out.println(isEarly && isEarlyCand);
-
-    //return Math.abs(onPrix.beginIndexInclusive - candidate.beginIndexInclusive) < 5 ;
     return (isEarly && isEarlyCand);
   }
 
@@ -161,9 +153,9 @@ public class ClassifierBased implements CoreferenceSystem {
     return null;
   }
 
-  private boolean isPossible(Mention onPrix, Mention candidate) {
+  private boolean isPronounMatch(Mention onPrix, Mention candidate) {
     if (Pronoun.valueOrNull(onPrix.headWord()) == null || Pronoun.valueOrNull(candidate.headWord()) == null) {
-      return false; //true
+      return false;
     }
 
     if (isPlural(onPrix) != isPlural(candidate)) {
@@ -204,14 +196,14 @@ public class ClassifierBased implements CoreferenceSystem {
         return new Feature.DistanceMatch(getDistance(onPrix, candidate), 5, 5);
       } else if (clazz.equals(Feature.EarlyMatch.class)) {
         return new Feature.EarlyMatch(getEarly(onPrix, candidate));
-      } else if (clazz.equals(Feature.PronounMatch.class)) {
-        return new Feature.PronounMatch(getPronoun(onPrix, candidate));
+      } else if (clazz.equals(Feature.PronounMatch2.class)) {
+        return new Feature.PronounMatch2(getPronoun(onPrix, candidate));
       } else if (clazz.equals(Feature.OnePronounMatch.class)) {
         return new Feature.OnePronounMatch(getOnePronoun(onPrix, candidate));
       } else if (clazz.equals(Feature.EarlyAndFuzzy.class)) {
         return new Feature.EarlyAndFuzzy(getEarly(onPrix, candidate) || isFuzzy(onPrix, candidate));
-      } else if (clazz.equals(Feature.Possible.class)) {
-        return new Feature.Possible(isPossible(onPrix, candidate));
+      } else if (clazz.equals(Feature.isPronounMatch.class)) {
+        return new Feature.isPronounMatch(isPronounMatch(onPrix, candidate));
       } else if (clazz.equals(Feature.FuzzyFrac.class)) {
         return new Feature.FuzzyFrac(fuzzyFrac(onPrix, candidate));
       } else if (clazz.equals(Feature.HeadMatch.class)) {

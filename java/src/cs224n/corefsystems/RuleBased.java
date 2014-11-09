@@ -129,7 +129,7 @@ public class RuleBased implements CoreferenceSystem {
   }
 
   /**
-   * Pass 2: Constructs (appositives, predicate nominatives, etc.)
+   * Pass 2: Constructs (appositives, predicate nominatives)
    */
   private void constructs(Document doc, Map<Mention, Entity> clusters, ArrayList<Entity> entities) {
 
@@ -189,14 +189,6 @@ public class RuleBased implements CoreferenceSystem {
             {
               mergeEntities(m1, m2, clusters, entities);
             }
-          }
-
-          // 3. articles and possessives of abbreviations - account for apostrophe's (ex. "USTC" vs. "USTC's")  and articles (ex. "UN" and "the UN")
-          if (m1.gloss().toUpperCase().equals(m1.gloss()) && !m1.gloss().equals("I") &&
-            m2.gloss().lastIndexOf(m1.gloss()) != -1 &&
-            m2.gloss().length() - m1.gloss().length() < 5)
-          {
-            mergeEntities(m1, m2, clusters, entities);
           }
         }
       }
